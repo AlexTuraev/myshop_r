@@ -1,0 +1,15 @@
+#postgres
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/myshop
+    username: admin
+    password: admin
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    properties:
+      hibernate:
+        cache:
+          use_second_level_cache: true
+          region:
+            factory_class: org.hibernate.cache.jcache.JCacheRegionFactory
+    show-sql: true
