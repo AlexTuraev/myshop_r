@@ -1,11 +1,8 @@
 package org.tasks.myshop.service.impl;
 
-import jakarta.persistence.EntityManager;
 import org.springframework.stereotype.Service;
 import org.springframework.ui.Model;
-import org.tasks.myshop.dao.model.CartEntity;
 import org.tasks.myshop.dao.model.OrderEntity;
-import org.tasks.myshop.dao.model.complexid.OrderEntityId;
 import org.tasks.myshop.dao.repository.OrderRepository;
 import org.tasks.myshop.dto.InnerOrder;
 import org.tasks.myshop.dto.OrderDto;
@@ -15,10 +12,8 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
-import java.util.AbstractMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 @Service
 public class OrderServiceImpl implements OrderService {

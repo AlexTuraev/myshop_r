@@ -1,8 +1,6 @@
 package org.tasks.myshop.service.impl;
 
 import com.opencsv.CSVReader;
-import org.hibernate.cache.spi.support.AbstractReadWriteAccess;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -16,7 +14,6 @@ import org.tasks.myshop.dao.model.ItemPicsEntity;
 import org.tasks.myshop.dao.repository.ItemPicsRepository;
 import org.tasks.myshop.dao.repository.ItemRespository;
 import org.tasks.myshop.dto.ItemDto;
-import org.tasks.myshop.dto.ItemModelDto;
 import org.tasks.myshop.dto.PagingDto;
 import org.tasks.myshop.enums.SortEnum;
 import org.tasks.myshop.exception.LoadItemException;

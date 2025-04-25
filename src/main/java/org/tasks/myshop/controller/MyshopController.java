@@ -41,15 +41,15 @@ public class MyshopController {
             @RequestParam(name = "pageNumber", required = false) Integer pageNumber
     ) throws SortException {
         Mono<Model> monoModel = myshopService.getItemsModel(model, search, pageSize, pageNumber, sort);
-        return monoModel.map(model1 -> {
-            Rendering r = Rendering.view("order")
-                    .model(model1.asMap())
-                    .build();
-            return r;
-        });
+//        return monoModel.map(model1 -> {
+//            Rendering r = Rendering.view("order")
+//                    .model(model1.asMap())
+//                    .build();
+//            return r;
+//        });
 
-//        var v = monoModel.block();
-//        return null;
+        var v = monoModel.block();
+        return null;
     }
 
     // READY
