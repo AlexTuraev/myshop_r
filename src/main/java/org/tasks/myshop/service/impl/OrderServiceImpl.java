@@ -11,6 +11,8 @@ import org.tasks.myshop.dto.InnerOrder;
 import org.tasks.myshop.dto.OrderDto;
 import org.tasks.myshop.service.OrderService;
 import org.tasks.myshop.service.mapper.OrderMapper;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
 import java.util.AbstractMap;
@@ -30,44 +32,48 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
-    public Long getNextOrderId() {
+    public Mono<Long> getNextOrderId() {
         return orderRepository.getNextOrderId();
     }
 
     @Override
-    public List<OrderEntity> saveAll(List<OrderEntity> orders) {
+    public Flux<OrderEntity> saveAll(List<OrderEntity> orders) {
         return orderRepository.saveAll(orders);
     }
 
     @Override
-    public Map<Long, InnerOrder> findAll() {
-        List<OrderDto> dtos = orderRepository.findAll()
-                .stream().map(orderMapper::toDto).toList();
-        Map<Long, List<OrderDto>> mapOrders = dtos.stream().collect(Collectors.groupingBy(OrderDto::getOrderId));
-
-        Map<Long, InnerOrder> newMap = mapOrders.entrySet().stream()
-                .map(e -> new AbstractMap.SimpleEntry<>(e.getKey(), new InnerOrder(e.getValue(), getTotalSum(e.getValue()))))
-                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-
-        return newMap;
+    public Mono<Map<Long, InnerOrder>> findAll() {
+//        List<OrderDto> dtos = orderRepository.findAll()
+//                .stream().map(orderMapper::toDto).toList();
+//
+//        Map<Long, List<OrderDto>> mapOrders = dtos.stream().collect(Collectors.groupingBy(OrderDto::getOrderId));
+//
+//        Map<Long, InnerOrder> newMap = mapOrders.entrySet().stream()
+//                .map(e -> new AbstractMap.SimpleEntry<>(e.getKey(), new InnerOrder(e.getValue(), getTotalSum(e.getValue()))))
+//                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+//
+//        return newMap;
+        return null;
     }
 
     @Override
-    public List<OrderDto> getOrdersById(Long orderId) {
+    public Flux<OrderDto> getOrdersById(Long orderId) {
         return orderRepository.findAllWhereId(orderId)
-                .stream().map(orderMapper::toDto).toList();
+                .map(orderMapper::toDto);
     }
 
     @Override
-    public Model getModelOrdersById(Model model, Long orderId) {
-        List<OrderDto> orderDtos = getOrdersById(orderId);
+    public Mono<Model> getModelOrdersById(Model model, Long orderId) {
+        return getOrdersById(orderId)
+                .collectList()
+                .map(orderDtos -> {
+                    model.addAttribute("afterPurchase", false);
+                    model.addAttribute("orderId", orderId);
+                    model.addAttribute("orders", orderDtos);
+                    model.addAttribute("totalSum", getTotalSum(orderDtos));
 
-        model.addAttribute("afterPurchase", false);
-        model.addAttribute("orderId", orderId);
-        model.addAttribute("orders", orderDtos);
-        model.addAttribute("totalSum", getTotalSum(orderDtos));
-
-        return model;
+                    return model;
+                });
     }
 
     public BigDecimal getTotalSum(List<OrderDto> orders) {

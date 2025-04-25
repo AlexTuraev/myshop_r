@@ -4,8 +4,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.ui.Model;
 import org.tasks.myshop.dao.model.CartEntity;
 import org.tasks.myshop.dao.repository.CartRepository;
+import org.tasks.myshop.dto.CartDto;
 import org.tasks.myshop.service.CartService;
 import org.tasks.myshop.service.mapper.CartMapper;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -23,60 +26,75 @@ public class CartServiceImpl implements CartService {
     }
 
     @Override
-    public Optional<CartEntity> getCartByItemIdAndCartId(Long itemId, Long cartId) {
+    public Mono<Optional<CartEntity>> getCartByItemIdAndCartId(Long itemId, Long cartId) {
         return cartRepository.findByItemIdAndCartId(itemId, cartId);
     }
 
     @Override
-    public CartEntity updateCountItem(Long itemId, Long cartId, int deltaCount) {
-        CartEntity cart = getCartByItemIdAndCartId(itemId, cartId)
-                .orElse(new CartEntity(cartId, itemId, 0, null));
+    public Mono<CartEntity> updateCountItem(Long itemId, Long cartId, int deltaCount) {
+        Mono<CartEntity> monoCart = getCartByItemIdAndCartId(itemId, cartId)
+                .map(o -> o.orElse(new CartEntity(cartId, itemId, 0, null)));
 
-        if (cart.getCountItem() == 0 && deltaCount < 0) {
-            throw new RuntimeException("Попытка уменьшить отсутствующее значение");
-        }
+        return monoCart.map(cart -> {
+            if (cart.getCountItem() == 0 && deltaCount < 0) {
+                throw new RuntimeException("Попытка уменьшить отсутствующее значение");
+            }
 
-        cart.setCountItem(cart.getCountItem() + deltaCount);
-        if (cart.getCountItem() > 0) {
-            return cartRepository.save(cart);
-        }
-        else {
-            cartRepository.deleteByItemIdAndCartId(itemId, cartId);
-            return cart;
-        }
+            cart.setCountItem(cart.getCountItem() + deltaCount);
+            if (cart.getCountItem() > 0) {
+                cartRepository.save(cart);
+                return cart;
+            }
+            else {
+                cartRepository.deleteByItemIdAndCartId(itemId, cartId);
+                return cart;
+            }
+        });
+
+
     }
 
     @Override
-    public List<CartEntity> getCartsByCartId(Long cartId) {
+    public Flux<CartEntity> getCartsByCartId(Long cartId) {
         return cartRepository.getCartModelByCartId(cartId);
     }
 
     @Override
-    public Model getModelByCartId(Model model, Long cartId) {
-        List<CartEntity> cart = getCartsByCartId(cartId);
-        model.addAttribute("cartItems", cart.stream().map(cartMapper::toDto).toList());
-        model.addAttribute("totalSum", getTotalSum(cart));
-        return model;
+    public Mono<Model> getModelByCartId(Model model, Long cartId) {
+        Flux<CartEntity> fluxCart = getCartsByCartId(cartId);
+        Mono<List<CartDto>> modelCartItems = fluxCart.collectList().map(cart->cart.stream().map(cartMapper::toDto).toList());
+
+        Mono<BigDecimal> modeltotalSum = getTotalSum(fluxCart);
+
+        return Mono.zip(modelCartItems, modeltotalSum).map(tuple->{
+            model.addAttribute("cartItems", tuple.getT1());
+            model.addAttribute("totalSum", tuple.getT2());
+            return model;
+        });
     }
 
     @Override
-    public int getCountItemOrZeroIfAbsent(Long itemId, Long cartId) {
-        return getCartByItemIdAndCartId(itemId, cartId).map(CartEntity::getCountItem).orElse(0);
+    public Mono<Integer> getCountItemOrZeroIfAbsent(Long itemId, Long cartId) {
+        return getCartByItemIdAndCartId(itemId, cartId)
+                .map(o -> o.isEmpty() ? 0  : o.get().getCountItem());
     }
 
     @Override
-    public void deleteAll(List<CartEntity> carts) {
-        cartRepository.deleteAll(carts);
+    public Mono<Void> deleteAll(List<CartEntity> carts) {
+        return cartRepository.deleteAll(carts).then();
     }
 
     @Override
-    public BigDecimal getTotalSum(List<CartEntity> carts) {
-        BigDecimal total = BigDecimal.ZERO;
-        for (CartEntity cart : carts) {
-            BigDecimal sumItem = cart.getItem().getPrice().multiply(BigDecimal.valueOf(cart.getCountItem()));
-            total = total.add(sumItem);
-        }
-        return total;
+    public Mono<BigDecimal> getTotalSum(Flux<CartEntity> fluxCarts) {
+        return fluxCarts.collectList()
+                .map(carts -> {
+                    BigDecimal total = BigDecimal.ZERO;
+                    for (CartEntity cart : carts) {
+                        BigDecimal sumItem = cart.getItem().getPrice().multiply(BigDecimal.valueOf(cart.getCountItem()));
+                        total = total.add(sumItem);
+                    }
+                    return total;
+                });
     }
 
 }

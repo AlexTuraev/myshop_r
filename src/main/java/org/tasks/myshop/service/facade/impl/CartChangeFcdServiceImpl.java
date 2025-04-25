@@ -8,6 +8,7 @@ import org.tasks.myshop.dao.model.ItemEntity;
 import org.tasks.myshop.service.CartService;
 import org.tasks.myshop.service.MyshopService;
 import org.tasks.myshop.service.facade.CartChangeFcdService;
+import reactor.core.publisher.Mono;
 
 @Service
 public class CartChangeFcdServiceImpl implements CartChangeFcdService {
@@ -22,24 +23,26 @@ public class CartChangeFcdServiceImpl implements CartChangeFcdService {
 
     @Override
     @Transactional
-    public void updateItemInCart(Long cartId, Long itemId, String action) {
-        int delta = getDelta(cartId, itemId, action);
-
-        CartEntity cart = cartService.updateCountItem(itemId, cartId, delta);
-        ItemEntity item = myshopService.updateCountItem(itemId, -delta);
+    public Mono<Void> updateItemInCart(Long cartId, Long itemId, String action) {
+        Mono<Integer> monoDelta = getDelta(cartId, itemId, action);
+        return monoDelta.doOnNext(delta -> Mono.zip(cartService.updateCountItem(itemId, cartId, delta), myshopService.updateCountItem(itemId, -delta))).then();
     }
 
     @Override
-    public int getDelta(Long cartId, Long itemId, String action) {
-        CartEntity cart = cartService.getCartByItemIdAndCartId(itemId, cartId)
-                .orElse(new CartEntity(cartId, itemId, 0, null));
+    public Mono<Integer> getDelta(Long cartId, Long itemId, String action) {
+        return cartService.getCartByItemIdAndCartId(itemId, cartId)
+                .map(o->o.orElse(new CartEntity(cartId, itemId, 0, null)))
+                .map(c -> {
+                    return switch (action) {
+                        case "plus" -> 1;
+                        case "minus" -> -1;
+                        case "delete" -> -c.getCountItem();
+                        default -> throw new IllegalArgumentException("Invalid action:  " + action);
+                    };
+                })
+                ;
 
-        return switch (action) {
-            case "plus" -> 1;
-            case "minus" -> -1;
-            case "delete" -> -cart.getCountItem();
-            default -> throw new IllegalArgumentException("Invalid action:  " + action);
-        };
+
     }
 
 

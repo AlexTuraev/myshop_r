@@ -1,6 +1,7 @@
 package org.tasks.myshop.service.impl;
 
 import com.opencsv.CSVReader;
+import org.hibernate.cache.spi.support.AbstractReadWriteAccess;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -24,6 +25,7 @@ import org.tasks.myshop.service.CartService;
 import org.tasks.myshop.service.MyshopService;
 import org.tasks.myshop.service.mapper.ItemMapper;
 import org.tasks.myshop.service.mapper.ItemModelMapper;
+import reactor.core.publisher.Mono;
 
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -56,35 +58,47 @@ public class MyshopServiceImpl implements MyshopService {
     }
 
     @Override
-    public Page<ItemEntity> getItems(String search, Integer pageSize, Integer pageNumber, SortEnum sortType) {
+    public Mono<List<ItemEntity>> getItems(String search, Integer pageSize, Integer pageNumber, SortEnum sortType) {
         Sort sort = Sort.by(Sort.Direction.ASC, sortType.getSortField());
         PageRequest pageable = PageRequest.of(pageNumber, pageSize, sort);
-        return itemRespository.findByTitle(search, pageable);
+//        return itemRespository.findByTitle(search, pageable);
+        return itemRespository.findByTitle(search).skip(pageNumber*pageSize).take(pageSize).collectList();
     }
 
     @Override
-    public Page<ItemModel> getItemsOverMinQuantity(String search, Integer pageSize, Integer pageNumber, SortEnum sortType, int minQuantity) {
+    public Mono<List<ItemModel>> getItemsOverMinQuantity(String search, Integer pageSize, Integer pageNumber, SortEnum sortType, int minQuantity) {
         Sort sort = Sort.by(Sort.Direction.ASC, sortType.getSortField());
         PageRequest pageable = PageRequest.of(pageNumber, pageSize, sort);
 
-        return itemRespository.findByTitleAndOverMinQuantityNew(search, pageable, minQuantity);
+//        return itemRespository.findByTitleAndOverMinQuantityNew(search, pageable, minQuantity);
+        return itemRespository.findByTitleAndOverMinQuantityNew(search, minQuantity).skip(pageNumber*pageSize).take(pageSize).collectList();
     }
 
     @Override
-    public Model getItemsModel(Model model, String search, Integer pageSize, Integer pageNumber, String sort) throws SortException {
+    public Mono<Model> getItemsModel(Model model, String search, Integer pageSize, Integer pageNumber, String sort) throws SortException {
         int pageLimit = pageSize == null ? DEFAULT_PAGE_SIZE : pageSize;
         int pageNo = pageNumber == null ? DEFAULT_PAGE_NUMBER : pageNumber - 1;
         SortEnum sortEnum = (sort == null || sort.isEmpty()) ? DEFAULT_SORT : SortEnum.getByValue(sort);
         String searchString = search == null ? DEFAULT_SEARCH : search;
 
-        Page<ItemModel> pageItems = getItemsOverMinQuantity(searchString, pageLimit, pageNo, sortEnum, 1);
-        List<ItemModelDto> items = pageItems.getContent().stream().map(itemModelMapper::toDto).toList();
+        Mono<List<ItemModel>> monoPageItems = getItemsOverMinQuantity(searchString, pageLimit, pageNo, sortEnum, 1);
+        return monoPageItems
+                .doOnNext(pageItems -> model.addAttribute("paging", new PagingDto(pageLimit, pageNo+1, pageItems.size())))
+                .map(pageItems -> pageItems.stream().map(itemModelMapper::toDto).toList())
+                .map(items -> {
+                    model.addAttribute("items", items);
+                    model.addAttribute("search", searchString);
+                    model.addAttribute("sort", sortEnum.getValue());
+                    return model;
+                });
 
-        model.addAttribute("items", items);
-        model.addAttribute("search", searchString);
-        model.addAttribute("sort", sortEnum.getValue());
-        model.addAttribute("paging", new PagingDto(pageLimit, pageNo+1, pageItems.getTotalPages()));
-        return model;
+//        List<ItemModelDto> items = pageItems.getContent().stream().map(itemModelMapper::toDto).toList();
+
+//        model.addAttribute("items", items);
+//        model.addAttribute("search", searchString);
+//        model.addAttribute("sort", sortEnum.getValue());
+//        model.addAttribute("paging", new PagingDto(pageLimit, pageNo+1, pageItems.getTotalPages()));
+//        return model;
     }
 
     @Override
@@ -107,24 +121,28 @@ public class MyshopServiceImpl implements MyshopService {
     }
 
     @Override
-    public ItemDto getItemById(Long id) {
-        return itemRespository.findById(id).map(entity -> itemMapper.toDto(entity))
-                .orElseThrow(()->new RuntimeException("Item not found"));
+    public Mono<ItemDto> getItemById(Long id) {
+        return itemRespository.findById(id)
+                .map(entity -> itemMapper.toDto(entity));
+//                .orElseThrow(()->new RuntimeException("Item not found"));
     }
 
     @Override
     @Transactional
-    public Model changeItemCart(Model model, Long itemId, Long cartId, int delta) {
-        CartEntity cart = cartService.updateCountItem(itemId, cartId, delta);
-        ItemEntity item = updateCountItem(itemId, -delta);
-        // ToDo
-        model.addAttribute("item", itemMapper.toDto(item));
-        model.addAttribute("countItem", cart.getCountItem());
-        return model;
+    public Mono<Model> changeItemCart(Model model, Long itemId, Long cartId, int delta) {
+        Mono<CartEntity> monoCart = cartService.updateCountItem(itemId, cartId, delta);
+        Mono<ItemEntity> monoItem = updateCountItem(itemId, -delta);
+
+        return Mono.zip(monoCart, monoItem)
+                .map(tuple -> {
+                    model.addAttribute("countItem", tuple.getT1().getCountItem());
+                    model.addAttribute("item", itemMapper.toDto(tuple.getT2()));
+                    return model;
+                });
     }
 
     @Override
-    public ItemEntity updateCountItem(Long itemId, int deltaCount) {
+    public Mono<ItemEntity> updateCountItem(Long itemId, int deltaCount) {
         return itemRespository
                 .findById(itemId)
                 .map(item -> {
@@ -132,7 +150,8 @@ public class MyshopServiceImpl implements MyshopService {
                     return item;
                 })
                 .map(itemRespository::save)
-                .orElseThrow();
+                .flatMap(it -> it);
+//                .orElseThrow();
     }
 
     private List<ItemEntity> saveItems(List<String[]> records) {
@@ -147,7 +166,7 @@ public class MyshopServiceImpl implements MyshopService {
             items.add(entity);
         });
 
-        return itemRespository.saveAll(items);
+        return itemRespository.saveAll(items).toStream().toList();
     }
 
     private void saveImages(MultipartFile[] images, List<ItemEntity> items, List<String[]> records) throws IOException {

@@ -2,23 +2,28 @@ package org.tasks.myshop.dao.repository;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
+//import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.r2dbc.repository.Query;
+import org.springframework.data.r2dbc.repository.R2dbcRepository;
+import org.springframework.data.repository.reactive.ReactiveCrudRepository;
 import org.springframework.stereotype.Repository;
 import org.tasks.myshop.dao.model.ItemEntity;
 import org.tasks.myshop.dao.model.ItemModel;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 @Repository
-public interface ItemRespository extends JpaRepository<ItemEntity, Long> {
+public interface ItemRespository extends R2dbcRepository<ItemEntity, Long> {
     @Query("""
         SELECT item FROM ItemEntity item LEFT JOIN FETCH item.itemPics WHERE item.title LIKE :search%
     """)
-    Page<ItemEntity> findByTitle(String search, Pageable pageable);
+//    Mono<Page<ItemEntity>> findByTitle(String search, Pageable pageable);
+    Flux<ItemEntity> findByTitle(String search);
 
-    @Query("""
-        SELECT item FROM ItemEntity item LEFT JOIN FETCH item.itemPics WHERE item.title LIKE :search% AND item.quantity >= :minQuantity
-    """)
-    Page<ItemEntity> findByTitleAndOverMinQuantity(String search, Pageable pageable, int minQuantity);
+//    @Query("""
+//        SELECT item FROM ItemEntity item LEFT JOIN FETCH item.itemPics WHERE item.title LIKE :search% AND item.quantity >= :minQuantity
+//    """)
+//    Mono<Page<ItemEntity>> findByTitleAndOverMinQuantity(String search, Pageable pageable, int minQuantity);
 
     @Query("""
         SELECT new org.tasks.myshop.dao.model.ItemModel(item, coalesce(c.countItem, 0) )
@@ -28,5 +33,6 @@ public interface ItemRespository extends JpaRepository<ItemEntity, Long> {
                 WHERE item.title LIKE :search% AND item.quantity >= :minQuantity
                     AND (c.countItem IS NULL OR c.cartId = 1)
     """)
-    Page<ItemModel> findByTitleAndOverMinQuantityNew(String search, Pageable pageable, int minQuantity);
+//    Mono<Page<ItemModel>> findByTitleAndOverMinQuantityNew(String search, Pageable pageable, int minQuantity);
+    Flux<ItemModel> findByTitleAndOverMinQuantityNew(String search, int minQuantity);
 }

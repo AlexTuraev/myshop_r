@@ -11,6 +11,7 @@ import org.tasks.myshop.service.OrderService;
 import org.tasks.myshop.service.facade.PurchaseFcdService;
 import org.tasks.myshop.service.mapper.CartMapper;
 import org.tasks.myshop.service.mapper.CartOrderMapper;
+import reactor.core.publisher.Mono;
 
 import java.util.List;
 
@@ -31,27 +32,48 @@ public class PurchaseFcdServiceImpl implements PurchaseFcdService {
 
     @Override
     @Transactional
-    public Model purchase(Model model, Long cartId) {
-        List<CartEntity> carts = cartService.getCartsByCartId(cartId);
+    public Mono<Model> purchase(Model model, Long cartId) {
+//        List<CartEntity> carts = cartService.getCartsByCartId(cartId);
+//        Long nextOrderId = orderService.getNextOrderId();
+//        List<OrderEntity> orders = carts.stream()
+//                .map(cartOrderMapper::cartToOrderEntity)
+//                .map(orderEntity -> orderEntity.orderId(nextOrderId))
+//                .toList();
 
-        Long nextOrderId = orderService.getNextOrderId();
-        List<OrderEntity> orders = carts.stream()
-                .map(cartOrderMapper::cartToOrderEntity)
-                .map(orderEntity -> orderEntity.orderId(nextOrderId))
-                .toList();
-        List<OrderEntity> list = orderService.saveAll(orders);
-        cartService.deleteAll(carts);
 
-        List<OrderDto> orderDtos = carts.stream()
+        Long nextOrderId = orderService.getNextOrderId().block().longValue();
+        return cartService.getCartsByCartId(cartId)
+                .collectList()
+                .doOnNext(cartService::deleteAll)                                                         // cartService.deleteAll(carts);
+                .doOnNext(carts -> {
+                    List<OrderEntity> orders = carts.stream()
+                            .map(cartOrderMapper::cartToOrderEntity)
+                            .map(orderEntity -> orderEntity.orderId(nextOrderId))
+                            .toList();
+                    orderService.saveAll(orders);                                                         // List<OrderEntity> list = orderService.saveAll(orders);
+        })
+                .map(carts -> {
+                    List<OrderDto> orderDtos = carts.stream()
+                                    .map(cartMapper::toDto)
+                                    .map(cartOrderMapper::cartToOrderDto)
+                                    .toList();
+                    model.addAttribute("afterPurchase", true);
+                    model.addAttribute("orderId", nextOrderId);
+                    model.addAttribute("orders", orderDtos);
+//                    model.addAttribute("totalSum", cartService.getTotalSum(carts));
+                    return model;
+                });
+
+        /*List<OrderDto> orderDtos = carts.stream()
                 .map(cartMapper::toDto)
                 .map(cartOrderMapper::cartToOrderDto)
-                .toList();
+                .toList();*/
 
-        model.addAttribute("afterPurchase", true);
-        model.addAttribute("orderId", nextOrderId);
-        model.addAttribute("orders", orderDtos);
-        model.addAttribute("totalSum", cartService.getTotalSum(carts));
-        return model;
+//        model.addAttribute("afterPurchase", true);
+//        model.addAttribute("orderId", nextOrderId);
+//        model.addAttribute("orders", orderDtos);
+//        model.addAttribute("totalSum", cartService.getTotalSum(carts));
+//        return model;
     }
 
 

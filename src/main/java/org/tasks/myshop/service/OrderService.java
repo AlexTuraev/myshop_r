@@ -4,18 +4,20 @@ import org.springframework.ui.Model;
 import org.tasks.myshop.dao.model.OrderEntity;
 import org.tasks.myshop.dto.InnerOrder;
 import org.tasks.myshop.dto.OrderDto;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import java.util.List;
 import java.util.Map;
 
 public interface OrderService {
 
-    Long getNextOrderId();
+    Mono<Long> getNextOrderId();
 
-    List<OrderEntity> saveAll(List<OrderEntity> orders);
-    Map<Long, InnerOrder> findAll();
+    Flux<OrderEntity> saveAll(List<OrderEntity> orders);
+    Mono<Map<Long, InnerOrder>> findAll();
 
-    List<OrderDto> getOrdersById(Long orderId);
+    Flux<OrderDto> getOrdersById(Long orderId);
 
-    Model getModelOrdersById(Model model, Long orderId);
+    Mono<Model> getModelOrdersById(Model model, Long orderId);
 }
