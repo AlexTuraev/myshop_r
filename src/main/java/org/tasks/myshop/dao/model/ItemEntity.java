@@ -40,4 +40,11 @@ public class ItemEntity {
     @Transient
     private Integer countInSomeCart;
 
+    public ItemEntity(Long id, String title, String description, BigDecimal price, Integer quantity) {
+        this.id = id;
+        this.title = title;
+        this.description = description;
+        this.price = price;
+        this.quantity = quantity;
+    }
 }

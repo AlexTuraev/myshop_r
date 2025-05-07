@@ -25,13 +25,23 @@ public interface ItemRespository extends R2dbcRepository<ItemEntity, Long> {
 //    """)
 //    Mono<Page<ItemEntity>> findByTitleAndOverMinQuantity(String search, Pageable pageable, int minQuantity);
 
-    @Query("""
+    /*@Query("""
         SELECT new org.tasks.myshop.dao.model.ItemModel(item, coalesce(c.countItem, 0) )
             FROM ItemEntity item
             LEFT JOIN CartEntity c ON c.itemId = item.id
             LEFT JOIN FETCH item.itemPics
                 WHERE item.title LIKE :search% AND item.quantity >= :minQuantity
                     AND (c.countItem IS NULL OR c.cartId = 1)
+    """)*/
+    @Query("""
+        SELECT new org.tasks.myshop.dao.model.ItemModel(
+        new org.tasks.myshop.dao.model.ItemEntity(item.id as id, item.title as title, item.description as description, item.price as price, item.quantity as quantity), 
+        coalesce(c.countItem, 0) )
+            FROM items item
+            LEFT JOIN cart c ON c.item_id = item.id
+
+                WHERE item.title LIKE :search AND item.quantity >= :minQuantity
+                    AND (c.count_item IS NULL OR c.cart_id = 1)
     """)
 //    Mono<Page<ItemModel>> findByTitleAndOverMinQuantityNew(String search, Pageable pageable, int minQuantity);
     Flux<ItemModel> findByTitleAndOverMinQuantityNew(String search, int minQuantity);

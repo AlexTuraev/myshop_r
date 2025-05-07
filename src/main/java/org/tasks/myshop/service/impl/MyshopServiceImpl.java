@@ -3,6 +3,7 @@ package org.tasks.myshop.service.impl;
 import com.opencsv.CSVReader;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.r2dbc.core.DatabaseClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.ui.Model;
@@ -22,6 +23,7 @@ import org.tasks.myshop.service.CartService;
 import org.tasks.myshop.service.MyshopService;
 import org.tasks.myshop.service.mapper.ItemMapper;
 import org.tasks.myshop.service.mapper.ItemModelMapper;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.io.IOException;
@@ -45,13 +47,15 @@ public class MyshopServiceImpl implements MyshopService {
     private final ItemMapper  itemMapper;
     private final CartService  cartService;
     private final ItemModelMapper itemModelMapper;
+    private final DatabaseClient databaseClient;
 
-    public MyshopServiceImpl(ItemRespository itemRespository, ItemPicsRepository itemPicsRepository, ItemMapper itemMapper, CartService cartService, ItemModelMapper itemModelMapper) {
+    public MyshopServiceImpl(ItemRespository itemRespository, ItemPicsRepository itemPicsRepository, ItemMapper itemMapper, CartService cartService, ItemModelMapper itemModelMapper, DatabaseClient databaseClient) {
         this.itemRespository = itemRespository;
         this.itemPicsRepository = itemPicsRepository;
         this.itemMapper = itemMapper;
         this.cartService = cartService;
         this.itemModelMapper = itemModelMapper;
+        this.databaseClient = databaseClient;
     }
 
     @Override
@@ -63,12 +67,30 @@ public class MyshopServiceImpl implements MyshopService {
     }
 
     @Override
-    public Mono<List<ItemModel>> getItemsOverMinQuantity(String search, Integer pageSize, Integer pageNumber, SortEnum sortType, int minQuantity) {
+    public Flux<ItemModel> getItemsOverMinQuantity(String search, Integer pageSize, Integer pageNumber, SortEnum sortType, int minQuantity) {
         Sort sort = Sort.by(Sort.Direction.ASC, sortType.getSortField());
         PageRequest pageable = PageRequest.of(pageNumber, pageSize, sort);
+        return databaseClient.sql("""
+        SELECT item.id as id, item.title as title, item.description as description, item.price as price, item.quantity as quantity, coalesce(c.count_item, 0) as countInCart
+            FROM items item
+            LEFT JOIN cart c ON c.item_id = item.id
 
-//        return itemRespository.findByTitleAndOverMinQuantityNew(search, pageable, minQuantity);
-        return itemRespository.findByTitleAndOverMinQuantityNew(search, minQuantity).skip(pageNumber*pageSize).take(pageSize).collectList();
+                WHERE item.title LIKE :search AND item.quantity >= :minQuantity
+                    AND (c.count_item IS NULL OR c.cart_id = 1)
+    """)
+                .bind("search", search+"%")
+                .bind("minQuantity", minQuantity)
+                .map((row, metadata) -> new ItemModel(
+                        new ItemEntity(
+                                row.get("id", Long.class),
+                                row.get("title", String.class),
+                                row.get("description", String.class),
+                                row.get("price", BigDecimal.class),
+                                row.get("quantity", Integer.class)
+                        ),
+                        row.get("countInCart", Integer.class)
+                ))
+                .all();
     }
 
     @Override
@@ -78,29 +100,27 @@ public class MyshopServiceImpl implements MyshopService {
         SortEnum sortEnum = (sort == null || sort.isEmpty()) ? DEFAULT_SORT : SortEnum.getByValue(sort);
         String searchString = search == null ? DEFAULT_SEARCH : search;
 
-        Mono<List<ItemModel>> monoPageItems = getItemsOverMinQuantity(searchString, pageLimit, pageNo, sortEnum, 1);
-        return monoPageItems
-                .doOnNext(pageItems -> model.addAttribute("paging", new PagingDto(pageLimit, pageNo+1, pageItems.size())))
-                .map(pageItems -> pageItems.stream().map(itemModelMapper::toDto).toList())
+        Flux<ItemModel> fluxPageItems = getItemsOverMinQuantity(searchString, pageLimit, pageNo, sortEnum, 1);
+
+        Mono<Model> monoModel = fluxPageItems
+                .map(itemModelMapper::toDto)
+                .collectList()
                 .map(items -> {
-                    model.addAttribute("items", items);
                     model.addAttribute("search", searchString);
                     model.addAttribute("sort", sortEnum.getValue());
+                    model.addAttribute("paging", new PagingDto(pageLimit, pageNo+1, items.size()));
+                    model.addAttribute("items", items.subList(0, pageLimit));
                     return model;
                 });
 
-//        List<ItemModelDto> items = pageItems.getContent().stream().map(itemModelMapper::toDto).toList();
+        monoModel.subscribe(System.out::println);
 
-//        model.addAttribute("items", items);
-//        model.addAttribute("search", searchString);
-//        model.addAttribute("sort", sortEnum.getValue());
-//        model.addAttribute("paging", new PagingDto(pageLimit, pageNo+1, pageItems.getTotalPages()));
-//        return model;
+        return monoModel;
     }
 
     @Override
     @Transactional
-    public void loadItemsFromCsv(MultipartFile file, MultipartFile[] images) throws LoadItemException {
+    public Mono<Void> loadItemsFromCsv(MultipartFile file, MultipartFile[] images) throws LoadItemException {
         try {
             List<String[]> records;
             InputStreamReader reader = new InputStreamReader(file.getInputStream());
@@ -112,6 +132,7 @@ public class MyshopServiceImpl implements MyshopService {
 
             List<ItemEntity> items = saveItems(records);
             saveImages(images, items, records);
+            return Mono.empty();
         }catch (Exception e) {
             throw new LoadItemException(e.getMessage());
         }
@@ -190,7 +211,7 @@ public class MyshopServiceImpl implements MyshopService {
             }
         }
 
-        itemPicsRepository.saveAll(itemPics);
+        itemPicsRepository.saveAll(itemPics).blockFirst();
     }
 
 }

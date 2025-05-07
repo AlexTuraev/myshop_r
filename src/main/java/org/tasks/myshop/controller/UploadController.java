@@ -28,7 +28,7 @@ public class UploadController {
     public String loadItemsFromCsv(
             @RequestPart("uploadcsvfile") MultipartFile file,
             @RequestPart("images") MultipartFile[] images) throws LoadItemException {
-        myshopService.loadItemsFromCsv(file, images);
+        myshopService.loadItemsFromCsv(file, images).block();
         return "load-success";
     }
 

@@ -9,6 +9,7 @@ import org.tasks.myshop.dto.ItemDto;
 import org.tasks.myshop.enums.SortEnum;
 import org.tasks.myshop.exception.LoadItemException;
 import org.tasks.myshop.exception.SortException;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
@@ -17,11 +18,11 @@ public interface MyshopService {
 
     Mono<List<ItemEntity>> getItems(String search, Integer pageSize, Integer pageNumber, SortEnum sortType);
 
-    Mono<List<ItemModel>> getItemsOverMinQuantity(String search, Integer pageSize, Integer pageNumber, SortEnum sortType, int minQuantity);
+    Flux<ItemModel> getItemsOverMinQuantity(String search, Integer pageSize, Integer pageNumber, SortEnum sortType, int minQuantity);
 
     Mono<Model> getItemsModel(Model model, String search, Integer pageSize, Integer pageNumber, String sort) throws SortException;
 
-    void loadItemsFromCsv(MultipartFile file, MultipartFile[] images) throws LoadItemException;
+    Mono<Void> loadItemsFromCsv(MultipartFile file, MultipartFile[] images) throws LoadItemException;
 
     Mono<ItemDto> getItemById(Long id);
 
