@@ -29,6 +29,7 @@ import reactor.core.publisher.Mono;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.math.BigDecimal;
+import java.sql.Blob;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -71,10 +72,11 @@ public class MyshopServiceImpl implements MyshopService {
         Sort sort = Sort.by(Sort.Direction.ASC, sortType.getSortField());
         PageRequest pageable = PageRequest.of(pageNumber, pageSize, sort);
         return databaseClient.sql("""
-        SELECT item.id as id, item.title as title, item.description as description, item.price as price, item.quantity as quantity, coalesce(c.count_item, 0) as countInCart
+        SELECT item.id as id, item.title as title, item.description as description, item.price as price, item.quantity as quantity, coalesce(c.count_item, 0) as countInCart, 
+               pics.item_id as picItemId, pics.image_type as picImageType, pics.image as picsImage
             FROM items item
             LEFT JOIN cart c ON c.item_id = item.id
-
+            LEFT JOIN item_pics pics ON pics.item_id = item.id
                 WHERE item.title LIKE :search AND item.quantity >= :minQuantity
                     AND (c.count_item IS NULL OR c.cart_id = 1)
     """)
@@ -86,7 +88,12 @@ public class MyshopServiceImpl implements MyshopService {
                                 row.get("title", String.class),
                                 row.get("description", String.class),
                                 row.get("price", BigDecimal.class),
-                                row.get("quantity", Integer.class)
+                                row.get("quantity", Integer.class),
+                                new ItemPicsEntity(
+                                        row.get("picItemId", Long.class),
+                                        row.get("picImageType", String.class),
+                                        row.get("picsImage", byte[].class)
+                                )
                         ),
                         row.get("countInCart", Integer.class)
                 ))
@@ -102,7 +109,7 @@ public class MyshopServiceImpl implements MyshopService {
 
         Flux<ItemModel> fluxPageItems = getItemsOverMinQuantity(searchString, pageLimit, pageNo, sortEnum, 1);
 
-        Mono<Model> monoModel = fluxPageItems
+        return fluxPageItems
                 .map(itemModelMapper::toDto)
                 .collectList()
                 .map(items -> {
@@ -112,10 +119,6 @@ public class MyshopServiceImpl implements MyshopService {
                     model.addAttribute("items", items.subList(0, pageLimit));
                     return model;
                 });
-
-        monoModel.subscribe(System.out::println);
-
-        return monoModel;
     }
 
     @Override
@@ -206,7 +209,6 @@ public class MyshopServiceImpl implements MyshopService {
                 itemPic.setItemId(items.get(i).getId());
                 itemPic.setImageType(imageFile.getContentType());
                 itemPic.setImage(imageFile.getBytes());
-
                 itemPics.add(itemPic);
             }
         }

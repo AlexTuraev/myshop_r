@@ -47,4 +47,13 @@ public class ItemEntity {
         this.price = price;
         this.quantity = quantity;
     }
+
+    public ItemEntity(Long id, String title, String description, BigDecimal price, Integer quantity, ItemPicsEntity itemPics) {
+        this.id = id;
+        this.title = title;
+        this.description = description;
+        this.price = price;
+        this.quantity = quantity;
+        this.itemPics = itemPics;
+    }
 }

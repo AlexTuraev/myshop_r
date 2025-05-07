@@ -1,10 +1,16 @@
 package org.tasks.myshop.dao.model;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 
+import java.sql.Blob;
+
 @Data
+@AllArgsConstructor
+@NoArgsConstructor
 @Table(name = "item_pics")
 public class ItemPicsEntity {
 
