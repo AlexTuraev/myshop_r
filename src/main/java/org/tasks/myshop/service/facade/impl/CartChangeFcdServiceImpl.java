@@ -31,7 +31,8 @@ public class CartChangeFcdServiceImpl implements CartChangeFcdService {
     @Override
     public Mono<Integer> getDelta(Long cartId, Long itemId, String action) {
         return cartService.getCartByItemIdAndCartId(itemId, cartId)
-                .map(o->o.orElse(new CartEntity(cartId, itemId, 0, null)))
+//                .map(o->o.orElse(new CartEntity(cartId, itemId, 0, null)))
+                .defaultIfEmpty(new CartEntity(cartId, itemId, 0, null))
                 .map(c -> {
                     return switch (action) {
                         case "plus" -> 1;

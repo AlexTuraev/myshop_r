@@ -53,9 +53,12 @@ public class MyshopController {
         Mono<Integer> monoCountItem = cartService.getCountItemOrZeroIfAbsent(id, 1L);
         return Mono.zip(monoItemDto, monoCountItem)
                 .map(tuple -> {
+                    System.out.println(tuple.getT1()); // находит OK
+                    System.out.println(tuple.getT2()); // находит OK
+
                     model.addAttribute("item", tuple.getT1());
                     model.addAttribute("countItem", tuple.getT2());
-                    return Rendering.view("item")
+                    return Rendering.view("item") // вопрос в рендеринге
                             .model(model.asMap())
                             .build();
                 });

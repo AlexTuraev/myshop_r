@@ -26,14 +26,15 @@ public class CartServiceImpl implements CartService {
     }
 
     @Override
-    public Mono<Optional<CartEntity>> getCartByItemIdAndCartId(Long itemId, Long cartId) {
+    public Mono<CartEntity> getCartByItemIdAndCartId(Long itemId, Long cartId) {
         return cartRepository.findByItemIdAndCartId(itemId, cartId);
     }
 
     @Override
     public Mono<CartEntity> updateCountItem(Long itemId, Long cartId, int deltaCount) {
         Mono<CartEntity> monoCart = getCartByItemIdAndCartId(itemId, cartId)
-                .map(o -> o.orElse(new CartEntity(cartId, itemId, 0, null)));
+                //.map(o -> o.orElse(new CartEntity(cartId, itemId, 0, null)));
+                .defaultIfEmpty(new CartEntity(cartId, itemId, 0, null));
 
         return monoCart.map(cart -> {
             if (cart.getCountItem() == 0 && deltaCount < 0) {
@@ -76,7 +77,8 @@ public class CartServiceImpl implements CartService {
     @Override
     public Mono<Integer> getCountItemOrZeroIfAbsent(Long itemId, Long cartId) {
         return getCartByItemIdAndCartId(itemId, cartId)
-                .map(o -> o.isEmpty() ? 0  : o.get().getCountItem());
+                .map(c -> c.getCountItem())
+                .defaultIfEmpty(0);
     }
 
     @Override

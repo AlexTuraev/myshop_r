@@ -11,7 +11,7 @@ import java.util.Optional;
 
 public interface CartService {
 
-    Mono<Optional<CartEntity>> getCartByItemIdAndCartId(Long itemId, Long cartId);
+    Mono<CartEntity> getCartByItemIdAndCartId(Long itemId, Long cartId);
 
     Mono<CartEntity> updateCountItem(Long itemId, Long cartId, int deltaCount);
 

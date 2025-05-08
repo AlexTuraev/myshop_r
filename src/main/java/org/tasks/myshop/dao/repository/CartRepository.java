@@ -13,7 +13,7 @@ import java.util.Optional;
 @Repository
 public interface CartRepository extends ReactiveCrudRepository<CartEntity, Long> {
 
-    Mono<Optional<CartEntity>> findByItemIdAndCartId(Long itemId, Long cartId);
+    Mono<CartEntity> findByItemIdAndCartId(Long itemId, Long cartId);
 
     Mono<Void> deleteByItemIdAndCartId(Long itemId, Long cartId);
 
