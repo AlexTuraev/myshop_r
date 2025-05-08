@@ -48,19 +48,22 @@ public class MyshopController {
 
     // READY
     @GetMapping("/item/{id}")
-    public Mono<Rendering> getItem(Model model, @PathVariable("id") Long id) {
+    public Mono<String> getItem(Model model, @PathVariable("id") Long id) {
         Mono<ItemDto> monoItemDto = myshopService.getItemById(id);
         Mono<Integer> monoCountItem = cartService.getCountItemOrZeroIfAbsent(id, 1L);
         return Mono.zip(monoItemDto, monoCountItem)
-                .map(tuple -> {
+                .doOnNext(tuple -> {
                     System.out.println(tuple.getT1()); // находит OK
                     System.out.println(tuple.getT2()); // находит OK
 
-                    return Rendering.view("item") // вопрос в рендеринге
+                    /*return Rendering.view("item") // вопрос в рендеринге
                             .modelAttribute("item", tuple.getT1())
                             .modelAttribute("countItem", tuple.getT2())
-                            .build();
-                });
+                            .build();*/
+                    model.addAttribute("item", tuple.getT1());
+                    model.addAttribute("countItem", tuple.getT2());
+                })
+                .thenReturn("item");
     }
 
     // READY
