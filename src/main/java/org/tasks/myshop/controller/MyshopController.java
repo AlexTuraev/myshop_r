@@ -56,10 +56,9 @@ public class MyshopController {
                     System.out.println(tuple.getT1()); // находит OK
                     System.out.println(tuple.getT2()); // находит OK
 
-                    model.addAttribute("item", tuple.getT1());
-                    model.addAttribute("countItem", tuple.getT2());
                     return Rendering.view("item") // вопрос в рендеринге
-                            .model(model.asMap())
+                            .modelAttribute("item", tuple.getT1())
+                            .modelAttribute("countItem", tuple.getT2())
                             .build();
                 });
     }
