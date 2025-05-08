@@ -71,6 +71,7 @@ public class MyshopServiceImpl implements MyshopService {
     public Flux<ItemModel> getItemsOverMinQuantity(String search, Integer pageSize, Integer pageNumber, SortEnum sortType, int minQuantity) {
         Sort sort = Sort.by(Sort.Direction.ASC, sortType.getSortField());
         PageRequest pageable = PageRequest.of(pageNumber, pageSize, sort);
+        Integer offset = pageNumber*pageSize;
         return databaseClient.sql("""
         SELECT item.id as id, item.title as title, item.description as description, item.price as price, item.quantity as quantity, coalesce(c.count_item, 0) as countInCart, 
                pics.item_id as picItemId, pics.image_type as picImageType, pics.image as picsImage
@@ -79,9 +80,12 @@ public class MyshopServiceImpl implements MyshopService {
             LEFT JOIN item_pics pics ON pics.item_id = item.id
                 WHERE item.title LIKE :search AND item.quantity >= :minQuantity
                     AND (c.count_item IS NULL OR c.cart_id = 1)
+        LIMIT :pageSize OFFSET :offset
     """)
                 .bind("search", search+"%")
                 .bind("minQuantity", minQuantity)
+                .bind("pageSize", pageSize)
+                .bind("offset", offset)
                 .map((row, metadata) -> new ItemModel(
                         new ItemEntity(
                                 row.get("id", Long.class),
@@ -116,7 +120,7 @@ public class MyshopServiceImpl implements MyshopService {
                     model.addAttribute("search", searchString);
                     model.addAttribute("sort", sortEnum.getValue());
                     model.addAttribute("paging", new PagingDto(pageLimit, pageNo+1, items.size()));
-                    model.addAttribute("items", items.subList(0, pageLimit));
+                    model.addAttribute("items", items);
                     return model;
                 });
     }
