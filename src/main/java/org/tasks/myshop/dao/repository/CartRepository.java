@@ -1,23 +1,27 @@
 package org.tasks.myshop.dao.repository;
 
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
+//import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.r2dbc.repository.Query;
+import org.springframework.data.repository.reactive.ReactiveCrudRepository;
+import org.springframework.stereotype.Repository;
 import org.tasks.myshop.dao.model.CartEntity;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
-import java.util.List;
 import java.util.Optional;
 
-public interface CartRepository extends JpaRepository<CartEntity, Long> {
+@Repository
+public interface CartRepository extends ReactiveCrudRepository<CartEntity, Long> {
 
-    Optional<CartEntity> findByItemIdAndCartId(Long itemId, Long cartId);
+    Mono<CartEntity> findByItemIdAndCartId(Long itemId, Long cartId);
 
-    void deleteByItemIdAndCartId(Long itemId, Long cartId);
+    Mono<Void> deleteByItemIdAndCartId(Long itemId, Long cartId);
 
     @Query("""
         SELECT ct FROM CartEntity ct 
             JOIN FETCH ct.item 
                 LEFT JOIN FETCH ct.item.itemPics WHERE ct.cartId=:cartId
     """)
-    List<CartEntity> getCartModelByCartId(Long cartId);
+    Flux<CartEntity> getCartModelByCartId(Long cartId);
 
 }

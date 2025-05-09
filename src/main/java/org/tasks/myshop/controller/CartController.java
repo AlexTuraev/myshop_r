@@ -7,9 +7,11 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.reactive.result.view.Rendering;
 import org.tasks.myshop.service.CartService;
 import org.tasks.myshop.service.facade.CartChangeFcdService;
 import org.tasks.myshop.service.facade.PurchaseFcdService;
+import reactor.core.publisher.Mono;
 
 @Controller
 @RequestMapping("/cart")
@@ -25,18 +27,29 @@ public class CartController {
         this.cartChangeFcdService = cartChangeFcdService;
     }
 
+    // READY
     @GetMapping("/{id}")
-    public String getCartByCartId(@PathVariable("id") Long cartId, Model model) {
-        model = cartService.getModelByCartId(model, cartId);
-        return "cart";
+    public Mono<Rendering> getCartByCartId(@PathVariable("id") Long cartId, Model model) {
+        Mono<Model> monoModel = cartService.getModelByCartId(model, cartId);
+
+        return monoModel.map(model1 -> {
+            Rendering r = Rendering.view("cart")
+                    .model(model1.asMap())
+                    .build();
+            return r;
+        });
     }
 
+    // READY
     @PostMapping("/{id}/buy")
-    public String cartBuy(@PathVariable("id") Long cartId, Model model) {
-        model = purchaseFcdService.purchase(model, cartId);
-        return "order";
+    public Mono<Rendering> cartBuy(@PathVariable("id") Long cartId, Model model) {
+        Mono<Model> monoModel = purchaseFcdService.purchase(model, cartId);
+        return monoModel.map(model1 -> Rendering.view("order")
+                .model(model.asMap())
+                .build());
     }
 
+    // READY
     @PostMapping("/{id}/item/{itemId}/changecount")
     public String cartBuy(@PathVariable("id") Long cartId, @PathVariable("itemId") Long itemId, @RequestParam("action") String action, Model model) {
         cartChangeFcdService.updateItemInCart(cartId, itemId, action);

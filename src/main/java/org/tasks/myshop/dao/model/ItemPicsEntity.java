@@ -1,24 +1,26 @@
 package org.tasks.myshop.dao.model;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
+import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Table;
 
-@Entity
+import java.sql.Blob;
+
 @Data
+@AllArgsConstructor
+@NoArgsConstructor
 @Table(name = "item_pics")
 public class ItemPicsEntity {
 
-    @Id
-    @Column(name = "item_id")
+    @Column("item_id")
     private Long itemId;
 
-    @Column(name = "image_type")
+    @Column("image_type")
     private String imageType;
 
-    @Column(name = "image")
+    @Column("image")
     private byte[] image;
 
 }

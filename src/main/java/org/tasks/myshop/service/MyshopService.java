@@ -9,21 +9,25 @@ import org.tasks.myshop.dto.ItemDto;
 import org.tasks.myshop.enums.SortEnum;
 import org.tasks.myshop.exception.LoadItemException;
 import org.tasks.myshop.exception.SortException;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+
+import java.util.List;
 
 public interface MyshopService {
 
-    Page<ItemEntity> getItems(String search, Integer pageSize, Integer pageNumber, SortEnum sortType);
+    Mono<List<ItemEntity>> getItems(String search, Integer pageSize, Integer pageNumber, SortEnum sortType);
 
-    Page<ItemModel> getItemsOverMinQuantity(String search, Integer pageSize, Integer pageNumber, SortEnum sortType, int minQuantity);
+    Flux<ItemModel> getItemsOverMinQuantity(String search, Integer pageSize, Integer pageNumber, SortEnum sortType, int minQuantity);
 
-    Model getItemsModel(Model model, String search, Integer pageSize, Integer pageNumber, String sort) throws SortException;
+    Mono<Model> getItemsModel(Model model, String search, Integer pageSize, Integer pageNumber, String sort) throws SortException;
 
-    void loadItemsFromCsv(MultipartFile file, MultipartFile[] images) throws LoadItemException;
+    Mono<Void> loadItemsFromCsv(MultipartFile file, MultipartFile[] images) throws LoadItemException;
 
-    ItemDto getItemById(Long id);
+    Mono<ItemDto> getItemById(Long id);
 
-    Model changeItemCart(Model model, Long itemId, Long cartId, int delta);
+    Mono<Model> changeItemCart(Model model, Long itemId, Long cartId, int delta);
 
-    ItemEntity updateCountItem(Long itemId, int deltaCount);
+    Mono<ItemEntity> updateCountItem(Long itemId, int deltaCount);
 
 }
