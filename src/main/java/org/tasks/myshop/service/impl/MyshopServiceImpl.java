@@ -147,9 +147,28 @@ public class MyshopServiceImpl implements MyshopService {
 
     @Override
     public Mono<ItemDto> getItemById(Long id) {
-        return itemRespository.findById(id)
+        return databaseClient.sql("""
+        SELECT item.id as id, item.title as title, item.description as description, item.price as price, item.quantity as quantity,  
+               pics.item_id as picItemId, pics.image_type as picImageType, pics.image as picsImage
+            FROM items item
+            LEFT JOIN item_pics pics ON pics.item_id = item.id
+                WHERE item.id = :id
+    """)
+                .bind("id", id)
+                .map((row, metadata) -> new ItemEntity(
+                        row.get("id", Long.class),
+                        row.get("title", String.class),
+                        row.get("description", String.class),
+                        row.get("price", BigDecimal.class),
+                        row.get("quantity", Integer.class),
+                        new ItemPicsEntity(
+                                row.get("picItemId", Long.class),
+                                row.get("picImageType", String.class),
+                                row.get("picsImage", byte[].class)
+                        )
+                ))
+                .one()
                 .map(entity -> itemMapper.toDto(entity));
-//                .orElseThrow(()->new RuntimeException("Item not found"));
     }
 
     @Override

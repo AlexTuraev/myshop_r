@@ -31,7 +31,7 @@ public class MyshopController {
         this.cartChangeFcdService = cartChangeFcdService;
     }
 
-    // READY
+    // READY-R
     @GetMapping
     public Mono<Rendering> getItems(
             Model model,
@@ -46,16 +46,13 @@ public class MyshopController {
                     .build());
     }
 
-    // READY
+    // READY-R
     @GetMapping("/item/{id}")
     public Mono<String> getItem(Model model, @PathVariable("id") Long id) {
         Mono<ItemDto> monoItemDto = myshopService.getItemById(id);
         Mono<Integer> monoCountItem = cartService.getCountItemOrZeroIfAbsent(id, 1L);
         return Mono.zip(monoItemDto, monoCountItem)
                 .doOnNext(tuple -> {
-                    System.out.println(tuple.getT1()); // находит OK
-                    System.out.println(tuple.getT2()); // находит OK
-
                     model.addAttribute("item", tuple.getT1());
                     model.addAttribute("countItem", tuple.getT2());
                 })
